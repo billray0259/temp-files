@@ -1,0 +1,40 @@
+name: cleanup-old-files
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Delete files older than 1.0 hour(s)
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d '1.0 hours ago' +%s)
+          changed=0
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/*) continue ;;
+            esac
+            last_commit_ts=$(git log -1 --format=%ct -- "$file")
+            if [ -n "$last_commit_ts" ] && [ "$last_commit_ts" -lt "$cutoff" ]; then
+              echo "Deleting $file (last committed $(date -u -d @$last_commit_ts))"
+              git rm -q "$file"
+              changed=1
+            fi
+          done < <(git ls-files)
+          if [ "$changed" = "1" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Automated cleanup: remove files older than 1.0 hour(s)"
+            git push
+          else
+            echo "Nothing to clean up"
+          fi

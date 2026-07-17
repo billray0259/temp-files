@@ -17,7 +17,7 @@ jobs:
       - name: Delete files older than 1.0 hour(s)
         run: |
           set -euo pipefail
-          cutoff=$(date -u -d '1.0 hours ago' +%s)
+          cutoff=$(( $(date -u +%s) - 3600 ))
           changed=0
           while IFS= read -r file; do
             case "$file" in
